@@ -1,66 +1,80 @@
-import React, { useState, useEffect, useRef } from 'react';
-import socketIOClient from 'socket.io-client';
-const ENDPOINT = 'http://localhost:3001';
-const socket = socketIOClient(ENDPOINT);
+import React, { useEffect, useState, useRef } from 'react';
+import io from 'socket.io-client';
+import Home from './components/Home';
+const socket = io('http://localhost:3001');
 
-function App() {
-  const [response, setResponse] = useState([]);
-  const [user, setUser] = useState(null);
-  const inputRef = useRef(1);
+const App = () => {
+  const [users, setUsers] = useState();
+  const [user, setUser] = useState();
+  const [recieverId, setRecieverId] = useState();
+  const [messages, setMessages] = useState([]);
+  const renderCount = useRef(1);
+
   useEffect(() => {
-    inputRef.current = inputRef.current + 1;
-  });
-
-  useEffect(() => {
-    socket.on('RECIEVE_MESSAGE', (msg) => {
-      setResponse((prev) => [...prev, msg]);
+    renderCount.current = renderCount.current + 1;
+    socket.on('users', (users) => setUsers(users));
+    socket.on('recieve_message', (data) => {
+      setMessages((prevMessages) => [...prevMessages, data]);
     });
-
-    socket.on('message', (msg) => {
-      setResponse((prev) => [...prev, msg]);
-    });
-    // eslint-disable-next-line
+    socket.on('exit', (data) => setUsers(data));
   }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    socket.emit('SEND_MESSAGE', {
+    setUser(e.target.username.value);
+    socket.emit('new_user', e.target.username.value);
+    e.target.username.value = '';
+  };
+
+  const handleSend = (e) => {
+    e.preventDefault();
+    socket.emit('new_msg', {
       message: e.target.message.value,
-      user:
-        user === 'guru.apr21@gmail.com'
-          ? 'hanushajp@gmail.com'
-          : 'guru.apr21@gmail.com',
+      recieverId,
+      sentBy: user,
     });
     e.target.message.value = '';
   };
 
-  const handleUser = (e) => {
-    e.preventDefault();
-    socket.emit('join', { email: e.target.user.value });
-    setUser(e.target.user.value);
-  };
-
+  const usersOnline = users?.filter((item) => item.username !== user);
   return (
+    // <>
+    //   <Home />
+    // </>
     <>
-      {user ?? (
-        <form onSubmit={handleUser}>
-          <input type="text" name="user"></input>
+      {!user && (
+        <form onSubmit={handleSubmit}>
+          <input type="text" name="username" required></input>
           <button type="submit">Create</button>
         </form>
       )}
-
-      <ul>
-        {response.map((message, i) => (
-          <li key={i}>{message}</li>
-        ))}
-      </ul>
-      <form onSubmit={handleSubmit}>
-        <input type="text" name="message"></input>
-        <button type="submit">send</button>
-      </form>
-      <p>I rendered {inputRef.current} times</p>
+      {user && (
+        <>
+          <h1>LoggedIn User: {user}</h1>
+          {usersOnline?.length > 0 && <h1>Users Online</h1>}
+          {usersOnline?.map((user) => (
+            <p key={user.id} onClick={() => setRecieverId(user.id)}>
+              {user.username}
+            </p>
+          ))}
+          <h1>Messages</h1>
+          <ul>
+            {messages.map((data) => (
+              <>
+                <span>{data.sentBy}</span>
+                <li>{data.message}</li>
+              </>
+            ))}
+          </ul>
+          <form onSubmit={handleSend}>
+            <input type="text" name="message" required></input>
+            <button type="submit">Send</button>
+          </form>
+        </>
+      )}
+      <p>I rendered {renderCount.current} times</p>
     </>
   );
-}
+};
 
 export default App;
