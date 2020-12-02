@@ -7,29 +7,12 @@ const io = require('socket.io')(http, {
   },
 });
 const cors = require('cors');
+const connect = require('./socketService');
 
 app.use(cors());
 
-io.on('connection', (socket) => {
-  console.log('New client connected');
-
-  socket.on('join', (data) => {
-    socket.join(data.email);
-  });
-
-  socket.on('message', (msg) => {
-    socket.broadcast.emit('message', msg);
-  });
-
-  socket.on('SEND_MESSAGE', (data) => {
-    io.to(data.user).emit('RECIEVE_MESSAGE', data.message);
-  });
-
-  socket.on('disconnect', () => {
-    console.log('Client disconnected');
-  });
-});
-
+//Establish socket connection
+connect(io);
 const PORT = 3001;
 
 http.listen(PORT, () => console.log(`Listening on port ${PORT}`));
